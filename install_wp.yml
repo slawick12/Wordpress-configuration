@@ -1,0 +1,65 @@
+---
+- hosts: wordpress_nodes
+  become: yes
+  vars:
+    wordpress_path: /var/www/wordpress
+    database_name: "blog"
+  tasks:
+    - name: "Lets create hello world"
+      file:
+        path: ~/HelloWorld
+        state: touch
+    - name: "Install apache server"
+      yum:
+        name: httpd
+        state: latest
+    - name: "install mysql"
+      yum:
+        name: "{{packages}}"
+        state: present
+      vars:
+        packages:
+          - mariadb
+          - mariadb-server
+    - name: "install php"
+      yum:
+        name: "{{packs}}"
+        state: latest
+      vars:
+        packs:
+          - php
+          - php-mysql
+          - MySQL-python
+    - name: "download wp"
+      get_url:
+        url: https://pl.wordpress.org/wordpress-4.9.8-pl_PL.zip
+        dest: /tmp/wp.zip
+    - name: "unarchive wp"
+      unarchive:
+        src: /tmp/wp.zip
+        dest: /var/www
+        remote_src: yes
+    - name: "Start service mySql, if not started"
+      service:
+        name: mariadb
+        state: started
+    - name: "Create database named wp_database"
+      mysql_db:
+        name: wp_database
+        state: present
+    - name: "Start service httpd, if not started"
+      service:
+        name: httpd
+        state: started
+    - name: "Put apache configutation"
+      copy:
+        src: templates/blog.conf
+        dest: /etc/httpd/conf.d/blog.conf
+    - name: "Start service httpd"
+      service:
+        name:  httpd
+        state: restarted
+    - name: "Copy wp-config"
+      copy:
+        src: templates/wp-config.php
+        dest: "{{wordpress_path}}/wp-config.php"
